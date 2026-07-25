@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+{% block title %}Dashboard · Project Ledger{% endblock %}
+
+{% block content %}
+
+<div class="page-head">
+  <div>
+    <h1>Dashboard</h1>
+    <p>Track every team's progress, priority, and deadline in one place.</p>
+  </div>
+  <a href="/add" class="btn btn-accent">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg>
+    Add Project
+  </a>
+</div>
+
+<div class="stat-grid">
+  <div class="stat-card">
+    <div class="stat-label">Total Projects</div>
+    <div class="stat-value">{{ total }}</div>
+  </div>
+  <div class="stat-card is-accent">
+    <div class="stat-label">Completed</div>
+    <div class="stat-value">{{ completed }}</div>
+  </div>
+  <div class="stat-card is-amber">
+    <div class="stat-label">In Progress</div>
+    <div class="stat-value">{{ in_progress }}</div>
+  </div>
+  <div class="stat-card is-danger">
+    <div class="stat-label">Pending</div>
+    <div class="stat-value">{{ pending }}</div>
+  </div>
+</div>
+
+<form class="toolbar" method="GET">
+  <div class="search-box">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3" stroke-linecap="round"/></svg>
+    <input type="text" name="search" placeholder="Search projects…" value="{{ search }}">
+  </div>
+  <input type="hidden" name="status" value="{{ status }}">
+  <div class="filter-pills">
+    <a class="pill {% if status == 'All' %}is-active{% endif %}" href="/?status=All&search={{ search|urlencode }}">All</a>
+    <a class="pill {% if status == 'Completed' %}is-active{% endif %}" href="/?status=Completed&search={{ search|urlencode }}">Completed</a>
+    <a class="pill {% if status == 'In Progress' %}is-active{% endif %}" href="/?status=In+Progress&search={{ search|urlencode }}">In Progress</a>
+    <a class="pill {% if status == 'Pending' %}is-active{% endif %}" href="/?status=Pending&search={{ search|urlencode }}">Pending</a>
+  </div>
+</form>
+
+<div class="table-card">
+  <table>
+    <thead>
+      <tr>
+        <th>Project</th>
+        <th>Team</th>
+        <th>Priority</th>
+        <th>Progress</th>
+        <th>Status</th>
+        <th>Deadline</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for project in projects %}
+      <tr>
+        <td class="cell-primary">{{ project.project_name }}</td>
+        <td>
+          {{ project.team_leader }}
+          <div class="cell-sub">{{ project.team_members }} members</div>
+        </td>
+        <td>
+          <span class="priority-tag priority-{{ project.priority|lower }}">{{ project.priority }}</span>
+        </td>
+        <td>
+          <div class="ring-wrap">
+            <div class="ring" style="--pct: {{ project.progress }};"></div>
+            <span class="ring-value">{{ project.progress }}%</span>
+          </div>
+        </td>
+        <td>
+          {% if project.status == "Completed" %}
+            <span class="status-tag status-completed">Completed</span>
+          {% elif project.status == "In Progress" %}
+            <span class="status-tag status-in-progress">In Progress</span>
+          {% else %}
+            <span class="status-tag status-pending">Pending</span>
+          {% endif %}
+        </td>
+        <td class="cell-sub">{{ project.deadline }}</td>
+        <td>
+          <div class="row-actions">
+            <a href="/edit/{{ project.id }}" class="icon-btn edit" title="Edit">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+            </a>
+            <a href="/delete/{{ project.id }}" class="icon-btn delete" title="Delete"
+               onclick="return confirm('Delete this project? This cannot be undone.');">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6"/></svg>
+            </a>
+          </div>
+        </td>
+      </tr>
+      {% else %}
+      <tr class="empty-row">
+        <td colspan="7">No projects match your filters yet.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="insight-grid">
+  <div class="card">
+    <h3>Status Overview</h3>
+    <canvas id="statusChart" height="160"></canvas>
+  </div>
+  <div class="card">
+    <h3>Breakdown</h3>
+    <div class="legend-row">
+      <span><span class="legend-dot" style="background:#1F6F5C"></span>Completed</span>
+      <span class="legend-count">{{ completed }}</span>
+    </div>
+    <div class="legend-row">
+      <span><span class="legend-dot" style="background:#B8752E"></span>In Progress</span>
+      <span class="legend-count">{{ in_progress }}</span>
+    </div>
+    <div class="legend-row">
+      <span><span class="legend-dot" style="background:#B3423A"></span>Pending</span>
+      <span class="legend-count">{{ pending }}</span>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+new Chart(document.getElementById('statusChart'), {
+  type: 'doughnut',
+  data: {
+    labels: ['Completed', 'In Progress', 'Pending'],
+    datasets: [{
+      data: [{{ completed }}, {{ in_progress }}, {{ pending }}],
+      backgroundColor: ['#1F6F5C', '#B8752E', '#B3423A'],
+      borderWidth: 0
+    }]
+  },
+  options: {
+    cutout: '68%',
+    plugins: { legend: { display: false } }
+  }
+});
+</script>
+{% endblock %}
